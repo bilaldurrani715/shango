@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ShanGo - Bannu Landmark & Coordinate Studio</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
+    body { display: flex; height: 100vh; overflow: hidden; background: #0f172a; color: #f8fafc; }
+    
+    /* Left Sidebar */
+    #sidebar { width: 440px; height: 100%; background: #1e293b; border-right: 1px solid #334155; display: flex; flex-direction: column; z-index: 1000; box-shadow: 4px 0 24px rgba(0,0,0,0.4); }
+    #header { padding: 16px 20px; background: #0f172a; border-bottom: 1px solid #334155; display: flex; justify-content: space-between; align-items: center; }
+    #header h1 { font-size: 17px; font-weight: 800; color: #fbbf24; display: flex; align-items: center; gap: 8px; }
+    .count-badge { background: #3b82f6; color: white; padding: 2px 8px; border-radius: 12px; font-size: 11px; font-weight: bold; }
+    
+    /* Action & Paste Bar */
+    .paste-section { padding: 12px 16px; background: #0f172a; border-bottom: 1px solid #334155; }
+    .paste-title { font-size: 11.5px; font-weight: 700; color: #94a3b8; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .paste-row { display: flex; gap: 8px; }
+    .paste-input { flex: 1; padding: 8px 12px; background: #1e293b; border: 1px solid #475569; border-radius: 8px; color: #fff; font-size: 12.5px; outline: none; }
+    .paste-input:focus { border-color: #fbbf24; }
+    .btn { padding: 8px 14px; border-radius: 8px; border: none; font-weight: 700; font-size: 12px; cursor: pointer; transition: all 0.2s; display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+    .btn-primary { background: #fbbf24; color: #000; }
+    .btn-primary:hover { background: #f59e0b; }
+    .btn-blue { background: #3b82f6; color: #fff; }
+    .btn-blue:hover { background: #2563eb; }
+    .btn-green { background: #10b981; color: #fff; }
+    .btn-green:hover { background: #059669; }
+    .btn-danger { background: #ef4444; color: #fff; padding: 4px 8px; font-size: 11px; }
+
+    /* Edit Form */
+    #edit-form { padding: 14px 16px; background: #1e293b; border-bottom: 1px solid #334155; display: flex; flex-direction: column; gap: 10px; }
+    .form-group { display: flex; flex-direction: column; gap: 4px; }
+    .form-label { font-size: 11px; font-weight: 700; color: #cbd5e1; }
+    .form-input { padding: 8px 12px; background: #0f172a; border: 1px solid #475569; border-radius: 6px; color: #fff; font-size: 13px; outline: none; }
+    .form-input:focus { border-color: #fbbf24; }
+    .form-row { display: flex; gap: 8px; }
+    .form-row .form-group { flex: 1; }
+
+    /* Places List */
+    #list-header { padding: 10px 16px; background: #0f172a; font-size: 12px; font-weight: 700; color: #94a3b8; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #334155; }
+    #places-list { flex: 1; overflow-y: auto; padding: 10px 14px; display: flex; flex-direction: column; gap: 8px; }
+    .place-card { padding: 10px 12px; background: #0f172a; border-radius: 8px; border: 1px solid #334155; cursor: pointer; transition: all 0.2s; position: relative; }
+    .place-card:hover { border-color: #fbbf24; }
+    .place-card.active { border-color: #fbbf24; background: #1e293b; box-shadow: 0 0 10px rgba(251,191,36,0.2); }
+    .card-title { font-weight: 700; font-size: 13.5px; color: #f8fafc; }
+    .card-sub { font-size: 11.5px; color: #94a3b8; margin-top: 2px; }
+    .card-footer { display: flex; justify-content: space-between; align-items: center; margin-top: 6px; }
+    .badge { padding: 2px 6px; border-radius: 4px; font-size: 9.5px; font-weight: 700; text-transform: uppercase; }
+    .coords-text { font-family: monospace; font-size: 11px; color: #38bdf8; }
+
+    /* Bottom Export Bar */
+    #export-bar { padding: 12px 16px; background: #0f172a; border-top: 1px solid #334155; display: flex; gap: 8px; }
+    #export-bar .btn { flex: 1; }
+
+    /* Map */
+    #map { flex: 1; height: 100%; position: relative; }
+    .map-helper { position: absolute; top: 12px; left: 60px; z-index: 999; background: rgba(15, 23, 42, 0.9); padding: 8px 14px; border-radius: 20px; font-size: 12px; font-weight: 600; color: #fbbf24; border: 1px solid #334155; pointer-events: none; }
+  </style>
+</head>
+<body>
+
+  <div id="sidebar">
+    <div id="header">
+      <h1>📍 Bannu Landmark Studio</h1>
+      <span class="count-badge" id="count-badge">0 Places</span>
+    </div>
+
+    <!-- Quick Paste Box -->
+    <div class="paste-section">
+      <div class="paste-title">Quick Add from Google Maps Pin / URL / DMS</div>
+      <div class="paste-row">
+        <input type="text" id="paste-box" class="paste-input" placeholder="Paste e.g. 32°57'16.6&quot;N 70°38'53.4&quot;E or Maps Link..." />
+        <button class="btn btn-blue" onclick="processPastedCoordinates()">Parse</button>
+      </div>
+    </div>
+
+    <!-- Place Editor / Adder Form -->
+    <div id="edit-form">
+      <div class="form-group">
+        <label class="form-label">Landmark / Place Name *</label>
+        <input type="text" id="input-name" class="form-input" placeholder="e.g. DHQ Hospital Bannu" />
+      </div>
+
+      <div class="form-group">
+        <label class="form-label">Subtitle / Street Area</label>
+        <input type="text" id="input-subtitle" class="form-input" placeholder="e.g. DI Khan Road, Bannu" />
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Latitude *</label>
+          <input type="number" step="any" id="input-lat" class="form-input" placeholder="32.954611" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">Longitude *</label>
+          <input type="number" step="any" id="input-lng" class="form-input" placeholder="70.648167" />
+        </div>
+      </div>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label class="form-label">Category</label>
+          <select id="input-category" class="form-input">
+            <option value="hospital">Hospital / Clinic</option>
+            <option value="transport">Bus Adda / Stand</option>
+            <option value="gate">City Gate / Entry</option>
+            <option value="education">College / University</option>
+            <option value="bazaar">Bazaar / Market</option>
+            <option value="residential">Township / Colony</option>
+            <option value="chowk">Chowk / Intersection</option>
+            <option value="government">Government / Police</option>
+            <option value="park">Park / Recreation</option>
+            <option value="suburb">Village / Suburb</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Keywords / Aliases (Comma separated)</label>
+          <input type="text" id="input-keywords" class="form-input" placeholder="dhq, hospital, ڈی ایچ کیو" />
+        </div>
+      </div>
+
+      <div class="form-row" style="margin-top: 4px;">
+        <button class="btn btn-primary" style="flex: 2;" onclick="saveCurrentPlace()">💾 Save / Add Place</button>
+        <button class="btn btn-blue" style="flex: 1;" onclick="clearForm()">Clear</button>
+      </div>
+    </div>
+
+    <!-- Places List Header -->
+    <div id="list-header">
+      <span>Saved Verified Places</span>
+      <span style="font-size: 11px; color: #38bdf8;">Click place to view on map</span>
+    </div>
+
+    <!-- Places List -->
+    <div id="places-list"></div>
+
+    <!-- Export & Download Bar -->
+    <div id="export-bar">
+      <button class="btn btn-green" onclick="copyJSON()">📋 Copy JSON</button>
+      <button class="btn btn-primary" onclick="downloadJSON()">💾 Save bannu_places.json</button>
+    </div>
+  </div>
+
+  <div id="map">
+    <div class="map-helper">🖱️ Click anywhere on map to drop / move pin to that exact spot</div>
+  </div>
+
+  <script>
+    // Initialize Leaflet Map centered on Bannu
+    const map = L.map('map').setView([32.9861, 70.6042], 13);
+
+    // OpenStreetMap Streets
+    const osm = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      maxZoom: 19,
+      attribution: '© OpenStreetMap'
+    }).addTo(map);
+
+    // Google Satellite Hybrid (with road labels!)
+    const googleSat = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+      maxZoom: 20,
+      attribution: '© Google Satellite'
+    });
+
+    L.control.layers({
+      "OpenStreetMap (Roads)": osm,
+      "Google Satellite (Hybrid)": googleSat
+    }).addTo(map);
+
+    let activeMarker = null;
+    let placeMarkers = [];
+    let places = [];
+    let editingIndex = -1;
+
+    // Embedded Bannu Places Data (works offline in any browser via double-click)
+    places = [
+  {
+    "name": "Bannu Cantt",
+    "subtitle": "Cantt Area, Bannu, Khyber Pakhtunkhwa",
+    "lat": 32.9912,
+    "lng": 70.6054,
+    "category": "cantt",
+    "keywords": ["cantt", "cantonment", "bannu cantt", "garrison", "کینٹ", "بنوں کینٹ"]
+  },
+  {
+    "name": "DHQ Hospital Bannu",
+    "subtitle": "District Headquarters Hospital, DI Khan Road, Bannu",
+    "lat": 32.954611,
+    "lng": 70.648167,
+    "category": "hospital",
+    "keywords": ["dhq", "ghq", "dhq hospital", "ghq hospital", "district headquarters hospital", "civil hospital", "mardana hospital", "ڈی ایچ کیو", "ہسپتال", "di khan road"]
+  },
+  {
+    "name": "Old DHQ / Civil Hospital Bannu",
+    "subtitle": "Old City Hospital, Mandan / Railway Road, Bannu",
+    "lat": 32.9831,
+    "lng": 70.6062,
+    "category": "hospital",
+    "keywords": ["old dhq", "old civil hospital", "city hospital", "mandan road hospital", "پرانا ہسپتال"]
+  },
+  {
+    "name": "Khalifa Gul Nawaz Hospital (KGN)",
+    "subtitle": "Teaching Hospital, Bannu Township, Kohat Road, Bannu",
+    "lat": 33.0185,
+    "lng": 70.6968,
+    "category": "hospital",
+    "keywords": ["kgn", "kgn hospital", "khalifa gul nawaz", "teaching hospital", "township hospital", "kohat road", "کے جی این", "گل نواز ہسپتال", "بنوں ٹاؤن شپ"]
+  },
+  {
+    "name": "Bannu Medical College (BMC)",
+    "subtitle": "KGN Complex, DI Khan Road, Bannu",
+    "lat": 32.9740,
+    "lng": 70.6270,
+    "category": "education",
+    "keywords": ["bmc", "bmc bannu", "medical college", "kgn complex", "میڈیکل کالج", "بی ایم سی"]
+  },
+  {
+    "name": "Women & Children Hospital Bannu",
+    "subtitle": "Cantt Road, Bannu",
+    "lat": 32.9880,
+    "lng": 70.6090,
+    "category": "hospital",
+    "keywords": ["zanana hospital", "women hospital", "female hospital", "children hospital", "kids hospital", "زنانه هسپتال"]
+  },
+  {
+    "name": "Combined Military Hospital (CMH) Bannu",
+    "subtitle": "Bannu Cantt",
+    "lat": 32.9930,
+    "lng": 70.6070,
+    "category": "hospital",
+    "keywords": ["cmh", "cmh hospital", "cantt hospital", "military hospital", "سی ایم ایچ"]
+  },
+  {
+    "name": "Bannu City Hospital",
+    "subtitle": "Near Chungi Chowk, Bannu",
+    "lat": 32.9845,
+    "lng": 70.6075,
+    "category": "hospital",
+    "keywords": ["city hospital", "private hospital", "clinic", "سٹی ہسپتال"]
+  },
+  {
+    "name": "Al-Shifa Eye Clinic / Hospital",
+    "subtitle": "Near Preedy Gate, Bannu",
+    "lat": 32.9835,
+    "lng": 70.6080,
+    "category": "hospital",
+    "keywords": ["al shifa", "eye hospital", "eye clinic", "الشفا", "آنکھوں کا ہسپتال"]
+  },
+  {
+    "name": "Medicare Hospital Bannu",
+    "subtitle": "DI Khan Road Link, Bannu",
+    "lat": 32.9780,
+    "lng": 70.6180,
+    "category": "hospital",
+    "keywords": ["medicare hospital", "medicare", "private hospital", "میڈیکیئر"]
+  },
+  {
+    "name": "General Bus Stand Bannu (Main Lari Adda)",
+    "subtitle": "Central Terminal, Kohat & DI Khan Link, Bannu",
+    "lat": 32.9785,
+    "lng": 70.6120,
+    "category": "transport",
+    "keywords": ["general bus stand", "lari adda", "main lari adda", "bus adda", "terminal", "bus stand", "لاری اڈہ", "جنرل بس اسٹینڈ", "کوچ اڈہ"]
+  },
+  {
+    "name": "Miran Shah Adda Bannu",
+    "subtitle": "North Waziristan Passenger Terminal, Bannu",
+    "lat": 32.9810,
+    "lng": 70.5980,
+    "category": "transport",
+    "keywords": ["miran shah adda", "miranshah adda", "waziristan adda", "passenger terminal", "mirali adda", "میران شاہ اڈہ"]
+  },
+  {
+    "name": "DI Khan Adda Bannu",
+    "subtitle": "DI Khan Road Bus Stand, Bannu",
+    "lat": 32.9720,
+    "lng": 70.6150,
+    "category": "transport",
+    "keywords": ["di khan adda", "dera adda", "bus stand", "ڈی آئی خان اڈہ", "ڈیرہ اڈہ"]
+  },
+  {
+    "name": "Kohat Adda Bannu",
+    "subtitle": "Kohat Road Passenger Stand, Bannu",
+    "lat": 32.9950,
+    "lng": 70.6130,
+    "category": "transport",
+    "keywords": ["kohat adda", "peshawar adda", "kohat road adda", "کوہاٹ اڈہ"]
+  },
+  {
+    "name": "Lakki Marwat Adda Bannu",
+    "subtitle": "Near Lakki Gate, Bannu",
+    "lat": 32.9805,
+    "lng": 70.6075,
+    "category": "transport",
+    "keywords": ["lakki adda", "lakki marwat stand", "لکی اڈہ", "لکی مروت اڈہ"]
+  },
+  {
+    "name": "By-Pass Flying Coach Stand Bannu",
+    "subtitle": "Bypass Chowk, Kohat Road, Bannu",
+    "lat": 32.9995,
+    "lng": 70.6160,
+    "category": "transport",
+    "keywords": ["bypass adda", "coach stand", "flying coach", "niazi express", "بائی پاس اڈہ", "فلائنگ کوچ"]
+  },
+  {
+    "name": "Bannu Railway Station",
+    "subtitle": "Railway Road, Bannu",
+    "lat": 32.9882,
+    "lng": 70.6080,
+    "category": "transport",
+    "keywords": ["railway station", "train station", "railway road", "ریلوے اسٹیشن", "سٹیشن"]
+  },
+  {
+    "name": "Bannu Airport",
+    "subtitle": "Civil Aviation Airport (BNP), Bannu",
+    "lat": 32.9723,
+    "lng": 70.5281,
+    "category": "transport",
+    "keywords": ["airport", "bannu airport", "airfield", "bnp", "civil aviation", "ہوائی اڈہ", "ایئرپورٹ"]
+  },
+  {
+    "name": "Mandan Gate Bannu",
+    "subtitle": "Mandan Road Entrance, Old City, Bannu",
+    "lat": 32.9870,
+    "lng": 70.6045,
+    "category": "gate",
+    "keywords": ["mandan gate", "mandan darwaza", "mandan", "gate", "دروازہ", "منڈان گیٹ", "منڈان دروازہ"]
+  },
+  {
+    "name": "Preedy Gate Bannu",
+    "subtitle": "Historic Old Walled City Gate, Bannu",
+    "lat": 32.9839,
+    "lng": 70.6020,
+    "category": "gate",
+    "keywords": ["preedy gate", "pridy gate", "parade gate", "walled city", "gate", "پریڈی گیٹ", "پریڈی دروازہ"]
+  },
+  {
+    "name": "Hinjal Gate Bannu",
+    "subtitle": "Historic Eastern Gate, Bannu City",
+    "lat": 32.9860,
+    "lng": 70.6060,
+    "category": "gate",
+    "keywords": ["hinjal gate", "hinjal darwaza", "gate", "ہنجل گیٹ", "ہنجل دروازہ"]
+  },
+  {
+    "name": "Lakki Gate Bannu",
+    "subtitle": "Lakki Road Crossing, Bannu",
+    "lat": 32.9820,
+    "lng": 70.6050,
+    "category": "gate",
+    "keywords": ["lakki gate", "lakki darwaza", "gate", "lakki chowk", "لکی گیٹ", "لکی دروازہ"]
+  },
+  {
+    "name": "Qasaban Gate Bannu",
+    "subtitle": "Old City Gate, Bannu",
+    "lat": 32.9840,
+    "lng": 70.6010,
+    "category": "gate",
+    "keywords": ["qasaban gate", "qassaban darwaza", "butcher gate", "قصابان گیٹ", "قصابان دروازہ"]
+  },
+  {
+    "name": "Sokari Gate Bannu",
+    "subtitle": "Sokari Market Entrance Gate, Bannu",
+    "lat": 32.9815,
+    "lng": 70.6035,
+    "category": "gate",
+    "keywords": ["sokari gate", "sukari darwaza", "sukari gate", "gate", "سوکاری گیٹ", "سکری دروازہ"]
+  },
+  {
+    "name": "Farid Gate Bannu",
+    "subtitle": "City Gate, Bannu",
+    "lat": 32.9850,
+    "lng": 70.6070,
+    "category": "gate",
+    "keywords": ["farid gate", "fareed darwaza", "gate", "فرید گیٹ", "فرید دروازہ"]
+  },
+  {
+    "name": "Main Bazaar Bannu",
+    "subtitle": "Central Market & Shopping District, Bannu City",
+    "lat": 32.9845,
+    "lng": 70.6025,
+    "category": "bazaar",
+    "keywords": ["main bazaar", "main bazar", "city bazaar", "central market", "مین بازار", "شہر بازار"]
+  },
+  {
+    "name": "Chowk Bazaar Bannu",
+    "subtitle": "Historic Central Market Square, Bannu",
+    "lat": 32.9855,
+    "lng": 70.6040,
+    "category": "bazaar",
+    "keywords": ["chowk bazaar", "chawk bazar", "markaz", "city center", "چوک بازار"]
+  },
+  {
+    "name": "Chai Bazaar Bannu",
+    "subtitle": "Tea Merchants Market, Bannu City",
+    "lat": 32.9852,
+    "lng": 70.6032,
+    "category": "bazaar",
+    "keywords": ["chai bazaar", "tea market", "chai bazar", "چائے بازار"]
+  },
+  {
+    "name": "Sukari Bazaar Bannu",
+    "subtitle": "Old Sukari Commercial Market, Bannu",
+    "lat": 32.9850,
+    "lng": 70.6030,
+    "category": "bazaar",
+    "keywords": ["sukari bazaar", "sokari bazar", "old market", "سوکاری بازار", "سکری بازار"]
+  },
+  {
+    "name": "Cloth Market Bannu (Kapra Market)",
+    "subtitle": "Textile & Garments Market, Bannu",
+    "lat": 32.9840,
+    "lng": 70.6030,
+    "category": "bazaar",
+    "keywords": ["cloth market", "kapra market", "kapray ka bazaar", "textile market", "کپڑا مارکیٹ", "کپڑے کا بازار"]
+  },
+  {
+    "name": "Mobile & Electronics Market Bannu",
+    "subtitle": "Tech & Mobile Phone Center, Bannu",
+    "lat": 32.9858,
+    "lng": 70.6048,
+    "category": "bazaar",
+    "keywords": ["mobile market", "electronics bazaar", "phone market", "موبائل مارکیٹ", "الیکٹرانکس مارکیٹ"]
+  },
+  {
+    "name": "Fruit & Vegetable Market (Sabzi Mandi) Bannu",
+    "subtitle": "Wholesale Mandi, Bannu",
+    "lat": 32.9760,
+    "lng": 70.6130,
+    "category": "bazaar",
+    "keywords": ["sabzi mandi", "vegetable market", "fruit market", "mandi", "سبزی منڈی", "فروٹ منڈی"]
+  },
+  {
+    "name": "Timber Market (Lakarr Mandi) Bannu",
+    "subtitle": "Wood & Timber Market, Bannu",
+    "lat": 32.9775,
+    "lng": 70.6090,
+    "category": "bazaar",
+    "keywords": ["lakar mandi", "timber market", "lakarr mandi", "لکڑ منڈی"]
+  },
+  {
+    "name": "University of Science and Technology Bannu (USTB) Main Campus",
+    "subtitle": "Main Academic Campus, DI Khan Road, Bannu",
+    "lat": 32.9765,
+    "lng": 70.6255,
+    "category": "education",
+    "keywords": ["ustb", "university", "ust bannu", "science and technology", "di khan road campus", "یونیورسٹی آف سائنس اینڈ ٹیکنالوجی بنوں", "یو ایس ٹی بی"]
+  },
+  {
+    "name": "USTB City Campus Bannu",
+    "subtitle": "Old Campus, Bannu City",
+    "lat": 32.9865,
+    "lng": 70.6075,
+    "category": "education",
+    "keywords": ["ustb city campus", "old campus ustb", "city campus", "سٹی کیمپس"]
+  },
+  {
+    "name": "Govt Post Graduate College Bannu",
+    "subtitle": "College Road, Bannu",
+    "lat": 32.9815,
+    "lng": 70.6085,
+    "category": "education",
+    "keywords": ["post graduate college", "degree college", "govt college bannu", "پوسٹ گریجویٹ کالج", "ڈگری کالج"]
+  },
+  {
+    "name": "Govt Commerce College Bannu",
+    "subtitle": "Township Road, Bannu",
+    "lat": 32.9680,
+    "lng": 70.6300,
+    "category": "education",
+    "keywords": ["commerce college", "township road", "کامرس کالج"]
+  },
+  {
+    "name": "Govt Poly Technical Institute Bannu",
+    "subtitle": "Technical Education Complex, Bannu",
+    "lat": 32.9710,
+    "lng": 70.6240,
+    "category": "education",
+    "keywords": ["polytechnic", "technical college", "gpi", "پولی ٹیکنیکل انسٹیٹیوٹ"]
+  },
+  {
+    "name": "Army Public School (APS) Bannu",
+    "subtitle": "Bannu Cantt",
+    "lat": 32.9940,
+    "lng": 70.6030,
+    "category": "education",
+    "keywords": ["aps", "aps bannu", "army public school", "cantt school", "آرمی پبلک اسکول"]
+  },
+  {
+    "name": "Cantt Public School & College Bannu",
+    "subtitle": "Bannu Cantt",
+    "lat": 32.9915,
+    "lng": 70.6045,
+    "category": "education",
+    "keywords": ["cantt public school", "cantt college", "کینٹ پبلک اسکول"]
+  },
+  {
+    "name": "F.G Degree College Bannu Cantt",
+    "subtitle": "Federal Govt College, Bannu Cantt",
+    "lat": 32.9935,
+    "lng": 70.6065,
+    "category": "education",
+    "keywords": ["fg college", "federal govt college", "cantt college", "ایف جی کالج"]
+  },
+  {
+    "name": "Bannu Township Sector A",
+    "subtitle": "Bannu Township Housing Scheme, Sector A",
+    "lat": 32.9650,
+    "lng": 70.6350,
+    "category": "residential",
+    "keywords": ["township", "sector a", "bannu township", "housing scheme", "ٹاؤن شپ", "سیکٹر اے"]
+  },
+  {
+    "name": "Bannu Township Sector B",
+    "subtitle": "Bannu Township Housing Scheme, Sector B",
+    "lat": 32.9635,
+    "lng": 70.6370,
+    "category": "residential",
+    "keywords": ["township", "sector b", "bannu township", "ٹاؤن شپ", "سیکٹر بی"]
+  },
+  {
+    "name": "Bannu Township Sector C",
+    "subtitle": "Bannu Township Housing Scheme, Sector C",
+    "lat": 32.9620,
+    "lng": 70.6390,
+    "category": "residential",
+    "keywords": ["township", "sector c", "bannu township", "ٹاؤن شپ", "سیکٹر سی"]
+  },
+  {
+    "name": "Bannu Township Sector D",
+    "subtitle": "Bannu Township Housing Scheme, Sector D",
+    "lat": 32.9605,
+    "lng": 70.6410,
+    "category": "residential",
+    "keywords": ["township", "sector d", "bannu township", "ٹاؤن شپ", "سیکٹر ڈی"]
+  },
+  {
+    "name": "Bannu Township Sector E",
+    "subtitle": "Bannu Township Housing Scheme, Sector E",
+    "lat": 32.9590,
+    "lng": 70.6430,
+    "category": "residential",
+    "keywords": ["township", "sector e", "bannu township", "ٹاؤن شپ", "سیکٹر ای"]
+  },
+  {
+    "name": "Cantt Officers Colony Bannu",
+    "subtitle": "Residential Area, Bannu Cantt",
+    "lat": 32.9930,
+    "lng": 70.6040,
+    "category": "residential",
+    "keywords": ["cantt colony", "officers colony", "کینٹ کالونی"]
+  },
+  {
+    "name": "Railway Housing Colony Bannu",
+    "subtitle": "Railway Station Area, Bannu",
+    "lat": 32.9875,
+    "lng": 70.6095,
+    "category": "residential",
+    "keywords": ["railway colony", "railway quarters", "ریلوے کالونی"]
+  },
+  {
+    "name": "Muslim Colony Bannu",
+    "subtitle": "Residential Area, Near Adda, Bannu",
+    "lat": 32.9790,
+    "lng": 70.6160,
+    "category": "residential",
+    "keywords": ["muslim colony", "مسلم کالونی"]
+  },
+  {
+    "name": "Teachers Colony Bannu",
+    "subtitle": "Near USTB Campus, DI Khan Road, Bannu",
+    "lat": 32.9770,
+    "lng": 70.6230,
+    "category": "residential",
+    "keywords": ["teachers colony", "ustb colony", "ٹیچرز کالونی"]
+  },
+  {
+    "name": "Deputy Commissioner (DC) Office Bannu",
+    "subtitle": "Civil Secretariat, Bannu Cantt",
+    "lat": 32.9920,
+    "lng": 70.6040,
+    "category": "government",
+    "keywords": ["dc office", "commissioner office", "civil secretariat", "dc bannu", "ڈپٹی کمشنر آفس", "ڈی سی آفس"]
+  },
+  {
+    "name": "District Courts / Sessions Court Bannu",
+    "subtitle": "Judicial Complex / Kachehri, Bannu",
+    "lat": 32.9895,
+    "lng": 70.6065,
+    "category": "government",
+    "keywords": ["district court", "sessions court", "adalat", "kachehri", "judicial complex", "bar council", "ڈسٹرکٹ کورٹ", "کچہری", "سیشن کورٹ"]
+  },
+  {
+    "name": "Police Lines Bannu",
+    "subtitle": "Police Headquarters, Cantt Area, Bannu",
+    "lat": 32.9880,
+    "lng": 70.6040,
+    "category": "government",
+    "keywords": ["police lines", "dpo office", "police headquarter", "پولیس لائنز", "ڈی پی او آفس"]
+  },
+  {
+    "name": "Cantt Police Station Bannu",
+    "subtitle": "Cantt Area, Bannu",
+    "lat": 32.9905,
+    "lng": 70.6060,
+    "category": "government",
+    "keywords": ["cantt police station", "cantt thana", "تھانہ کینٹ"]
+  },
+  {
+    "name": "City Police Station Bannu",
+    "subtitle": "Old City, Bannu",
+    "lat": 32.9840,
+    "lng": 70.6050,
+    "category": "government",
+    "keywords": ["city thana", "city police station", "تھانہ سٹی"]
+  },
+  {
+    "name": "Bannu Press Club",
+    "subtitle": "Station Road, Bannu",
+    "lat": 32.9890,
+    "lng": 70.6055,
+    "category": "government",
+    "keywords": ["press club", "journalists club", "پریس کلب"]
+  },
+  {
+    "name": "General Post Office (GPO) Bannu",
+    "subtitle": "Main Post Office, Bannu Cantt",
+    "lat": 32.9885,
+    "lng": 70.6060,
+    "category": "government",
+    "keywords": ["gpo", "post office", "dak khana", "جی پی او", "ڈاک خانہ"]
+  },
+  {
+    "name": "NADRA Registration Center Bannu",
+    "subtitle": "CNIC Registration Office, Bannu",
+    "lat": 32.9800,
+    "lng": 70.6110,
+    "category": "government",
+    "keywords": ["nadra office", "cnic office", "nadra center", "نادرا آفس", "شناختی کارڈ"]
+  },
+  {
+    "name": "WAPDA / PESCO Division Office Bannu",
+    "subtitle": "Electricity Office, Bannu",
+    "lat": 32.9860,
+    "lng": 70.6120,
+    "category": "government",
+    "keywords": ["wapda office", "pesco", "bijli ghar", "واپڈا آفس", "پیسکو"]
+  },
+  {
+    "name": "SNGPL Gas Office Bannu",
+    "subtitle": "Sui Northern Gas Office, Bannu",
+    "lat": 32.9795,
+    "lng": 70.6140,
+    "category": "government",
+    "keywords": ["sngpl", "gas office", "sui gas", "سوئی گیس آفس"]
+  },
+  {
+    "name": "TMA Office Bannu",
+    "subtitle": "Tehsil Municipal Administration, Bannu",
+    "lat": 32.9865,
+    "lng": 70.6050,
+    "category": "government",
+    "keywords": ["tma office", "baldia", "municipality", "بلدیہ", "ٹی ایم اے"]
+  },
+  {
+    "name": "Chungi Chowk Bannu",
+    "subtitle": "Major Traffic Junction, Bannu",
+    "lat": 32.9830,
+    "lng": 70.6080,
+    "category": "chowk",
+    "keywords": ["chungi chowk", "chungi", "checkpost chowk", "چنگی چوک", "چنگی"]
+  },
+  {
+    "name": "Preedy Chowk Bannu",
+    "subtitle": "Near Preedy Gate, Bannu City",
+    "lat": 32.9838,
+    "lng": 70.6022,
+    "category": "chowk",
+    "keywords": ["preedy chowk", "pridy chowk", "پریڈی چوک"]
+  },
+  {
+    "name": "Mandan Chowk Bannu",
+    "subtitle": "Mandan Gate Intersection, Bannu",
+    "lat": 32.9870,
+    "lng": 70.6048,
+    "category": "chowk",
+    "keywords": ["mandan chowk", "منڈان چوک"]
+  },
+  {
+    "name": "Lakki Gate Chowk Bannu",
+    "subtitle": "Lakki Road Intersection, Bannu",
+    "lat": 32.9822,
+    "lng": 70.6052,
+    "category": "chowk",
+    "keywords": ["lakki chowk", "lakki gate chowk", "لکی چوک"]
+  },
+  {
+    "name": "Tanchi Chowk Bannu",
+    "subtitle": "Commercial Chowk, Bannu",
+    "lat": 32.9810,
+    "lng": 70.6060,
+    "category": "chowk",
+    "keywords": ["tanchi chowk", "tanchi bazaar", "تانچی چوک"]
+  },
+  {
+    "name": "Kohat Road Bypass Chowk Bannu",
+    "subtitle": "North Bypass Junction, Indus Highway Link, Bannu",
+    "lat": 33.0010,
+    "lng": 70.6180,
+    "category": "chowk",
+    "keywords": ["bypass chowk", "kohat bypass", "bypass", "بائی پاس چوک", "کوہاٹ بائی پاس"]
+  },
+  {
+    "name": "DI Khan Road Bypass Chowk Bannu",
+    "subtitle": "South Bypass Junction, Bannu",
+    "lat": 32.9690,
+    "lng": 70.6220,
+    "category": "chowk",
+    "keywords": ["di khan bypass", "indus highway link", "ring road chowk", "ڈی آئی خان بائی پاس"]
+  },
+  {
+    "name": "Miryan Chowk Bannu",
+    "subtitle": "Miryan Road Junction, Bannu",
+    "lat": 32.9750,
+    "lng": 70.6020,
+    "category": "chowk",
+    "keywords": ["miryan chowk", "mirian road", "مریان چوک"]
+  },
+  {
+    "name": "Milad Park Bannu",
+    "subtitle": "Public Recreation Park, Bannu City",
+    "lat": 32.9875,
+    "lng": 70.6015,
+    "category": "park",
+    "keywords": ["milad park", "park", "public park", "children park", "میلاد پارک", "پارک"]
+  },
+  {
+    "name": "Sports Complex & Stadium Bannu",
+    "subtitle": "Cantt Sports Arena & Cricket Stadium, Bannu",
+    "lat": 32.9890,
+    "lng": 70.6110,
+    "category": "park",
+    "keywords": ["sports complex", "stadium", "cantt stadium", "cricket ground", "اسپورٹس کمپلیکس", "اسٹیڈیم"]
+  },
+  {
+    "name": "Family Park Bannu Township",
+    "subtitle": "Recreational Park, Sector B, Bannu Township",
+    "lat": 32.9640,
+    "lng": 70.6360,
+    "category": "park",
+    "keywords": ["family park", "township park", "فیملی پارک"]
+  },
+  {
+    "name": "Kurram River View Point & Bridge Bannu",
+    "subtitle": "Kurram River Road, Bannu",
+    "lat": 32.9980,
+    "lng": 70.5950,
+    "category": "park",
+    "keywords": ["kurram bridge", "canal", "kurram river", "bridge", "دریائے کرم", "پل"]
+  },
+  {
+    "name": "Fatima Khel Bannu",
+    "subtitle": "Suburban Area & Village, Bannu",
+    "lat": 32.9780,
+    "lng": 70.5890,
+    "category": "suburb",
+    "keywords": ["fatima khel", "fatimakhel village", "فاطمہ خیل"]
+  },
+  {
+    "name": "Kotka Jalal Bannu",
+    "subtitle": "Village Kotka Jalal, Bannu",
+    "lat": 32.9830,
+    "lng": 70.5850,
+    "category": "suburb",
+    "keywords": ["kotka jalal", "jalal village", "کوٹکہ جلال"]
+  },
+  {
+    "name": "Amandi Bannu",
+    "subtitle": "Amandi Area, Bannu",
+    "lat": 32.9600,
+    "lng": 70.6100,
+    "category": "suburb",
+    "keywords": ["amandi", "village amandi", "امانڈی"]
+  },
+  {
+    "name": "Ismail Khel Bannu",
+    "subtitle": "Ismail Khel Area, Bannu",
+    "lat": 32.9920,
+    "lng": 70.5800,
+    "category": "suburb",
+    "keywords": ["ismail khel", "اسماعیل خیل"]
+  },
+  {
+    "name": "Sukari / Sokari Area Bannu",
+    "subtitle": "Sukari Village & Environs, Bannu",
+    "lat": 32.9700,
+    "lng": 70.5900,
+    "category": "suburb",
+    "keywords": ["sukari", "sokari village", "سکری", "سوکاری"]
+  },
+  {
+    "name": "Landidak Bannu",
+    "subtitle": "Landidak Village Area, Bannu",
+    "lat": 32.9550,
+    "lng": 70.6200,
+    "category": "suburb",
+    "keywords": ["landidak", "landi dak", "لنڈی ڈاک"]
+  },
+  {
+    "name": "Haved (Hawaid) Bannu",
+    "subtitle": "Haved Bazaar & Town, Bannu District",
+    "lat": 32.9350,
+    "lng": 70.6500,
+    "category": "suburb",
+    "keywords": ["haved", "hawaid", "hawaid bazaar", "ہاوید"]
+  },
+  {
+    "name": "Kakki Bannu",
+    "subtitle": "Kakki Village & Bazaar, Bannu District",
+    "lat": 32.8800,
+    "lng": 70.6800,
+    "category": "suburb",
+    "keywords": ["kakki", "kachi", "village kakki", "ککی"]
+  },
+  {
+    "name": "Miryan Tehsil Bannu",
+    "subtitle": "Miryan Main Bazaar & Tehsil Headquarter, Bannu",
+    "lat": 32.9200,
+    "lng": 70.5400,
+    "category": "suburb",
+    "keywords": ["miryan", "mirian tehsil", "مریان"]
+  },
+  {
+    "name": "Domel Bannu",
+    "subtitle": "Domel Bazaar & Tehsil, Bannu District",
+    "lat": 33.0800,
+    "lng": 70.7200,
+    "category": "suburb",
+    "keywords": ["domel", "domel bazaar", "domel tehsil", "ڈومیل"]
+  }
+]
+;
+    renderPlacesList();
+    renderMapMarkers();
+
+    // Map click listener -> drop active draggable pin
+    map.on('click', (e) => {
+      setPin(e.latlng.lat, e.latlng.lng, true);
+    });
+
+    function setPin(lat, lng, panTo = false) {
+      document.getElementById('input-lat').value = lat.toFixed(6);
+      document.getElementById('input-lng').value = lng.toFixed(6);
+
+      if (activeMarker) {
+        activeMarker.setLatLng([lat, lng]);
+      } else {
+        activeMarker = L.marker([lat, lng], { draggable: true }).addTo(map);
+        activeMarker.on('dragend', (ev) => {
+          const pos = ev.target.getLatLng();
+          document.getElementById('input-lat').value = pos.lat.toFixed(6);
+          document.getElementById('input-lng').value = pos.lng.toFixed(6);
+        });
+      }
+
+      if (panTo) {
+        map.panTo([lat, lng]);
+      }
+    }
+
+    function renderPlacesList() {
+      const container = document.getElementById('places-list');
+      container.innerHTML = '';
+      document.getElementById('count-badge').innerText = `${places.length} Places`;
+
+      places.forEach((p, idx) => {
+        const card = document.createElement('div');
+        card.className = 'place-card' + (editingIndex === idx ? ' active' : '');
+        card.id = 'place-card-' + idx;
+        card.innerHTML = `
+          <div class="card-title">${p.name}</div>
+          <div class="card-sub">${p.subtitle || ''}</div>
+          <div class="card-footer">
+            <span class="badge" style="background: #334155; color: #fbbf24;">${p.category || 'landmark'}</span>
+            <span class="coords-text">${p.lat.toFixed(4)}, ${p.lng.toFixed(4)}</span>
+            <button class="btn btn-danger" onclick="event.stopPropagation(); deletePlace(${idx})">🗑️</button>
+          </div>
+        `;
+        card.onclick = () => selectPlaceForEdit(idx);
+        container.appendChild(card);
+      });
+    }
+
+    function renderMapMarkers() {
+      placeMarkers.forEach(m => map.removeLayer(m));
+      placeMarkers = [];
+
+      places.forEach((p, idx) => {
+        const marker = L.circleMarker([p.lat, p.lng], {
+          radius: 8,
+          fillColor: '#fbbf24',
+          color: '#000',
+          weight: 1.5,
+          opacity: 1,
+          fillOpacity: 0.9
+        }).addTo(map);
+
+        marker.bindPopup(`<strong>${p.name}</strong><br>${p.subtitle || ''}<br><code>${p.lat}, ${p.lng}</code>`);
+        marker.on('click', () => selectPlaceForEdit(idx));
+        placeMarkers.push(marker);
+      });
+    }
+
+    function selectPlaceForEdit(idx) {
+      editingIndex = idx;
+      const p = places[idx];
+      document.getElementById('input-name').value = p.name;
+      document.getElementById('input-subtitle').value = p.subtitle || '';
+      document.getElementById('input-lat').value = p.lat;
+      document.getElementById('input-lng').value = p.lng;
+      document.getElementById('input-category').value = p.category || 'hospital';
+      document.getElementById('input-keywords').value = (p.keywords || []).join(', ');
+
+      setPin(p.lat, p.lng, true);
+      renderPlacesList();
+    }
+
+    function saveCurrentPlace() {
+      const name = document.getElementById('input-name').value.trim();
+      const subtitle = document.getElementById('input-subtitle').value.trim();
+      const lat = parseFloat(document.getElementById('input-lat').value);
+      const lng = parseFloat(document.getElementById('input-lng').value);
+      const category = document.getElementById('input-category').value;
+      const rawKeywords = document.getElementById('input-keywords').value.trim();
+
+      if (!name) {
+        alert('Please enter a Place Name!');
+        return;
+      }
+      if (isNaN(lat) || isNaN(lng)) {
+        alert('Please click on the map or enter Latitude and Longitude!');
+        return;
+      }
+
+      const keywords = rawKeywords
+        ? rawKeywords.split(',').map(k => k.trim()).filter(k => k.length > 0)
+        : [name.toLowerCase()];
+
+      const placeObj = { name, subtitle, lat, lng, category, keywords };
+
+      if (editingIndex >= 0 && editingIndex < places.length) {
+        places[editingIndex] = placeObj;
+      } else {
+        places.unshift(placeObj);
+      }
+
+      renderPlacesList();
+      renderMapMarkers();
+      clearForm();
+      alert(`Saved: ${name}`);
+    }
+
+    function deletePlace(idx) {
+      if (confirm(`Are you sure you want to delete "${places[idx].name}"?`)) {
+        places.splice(idx, 1);
+        if (editingIndex === idx) clearForm();
+        renderPlacesList();
+        renderMapMarkers();
+      }
+    }
+
+    function clearForm() {
+      editingIndex = -1;
+      document.getElementById('input-name').value = '';
+      document.getElementById('input-subtitle').value = '';
+      document.getElementById('input-lat').value = '';
+      document.getElementById('input-lng').value = '';
+      document.getElementById('input-keywords').value = '';
+      if (activeMarker) {
+        map.removeLayer(activeMarker);
+        activeMarker = null;
+      }
+      renderPlacesList();
+    }
+
+    // Convert DMS (e.g. 32°57'16.6"N 70°38'53.4"E) or Google Maps URL to Decimal
+    function processPastedCoordinates() {
+      const text = document.getElementById('paste-box').value.trim();
+      if (!text) return;
+
+      // 1. Check for DMS: 32°57'16.6"N 70°38'53.4"E
+      const dmsRegex = /(\d+)[°\s]+(\d+)['\s]+([\d.]+)"?\s*([NS])\s*,?\s*(\d+)[°\s]+(\d+)['\s]+([\d.]+)"?\s*([EW])/i;
+      const dmsMatch = text.match(dmsRegex);
+      if (dmsMatch) {
+        let lat = parseInt(dmsMatch[1]) + parseInt(dmsMatch[2])/60 + parseFloat(dmsMatch[3])/3600;
+        if (dmsMatch[4].toUpperCase() === 'S') lat = -lat;
+        let lng = parseInt(dmsMatch[5]) + parseInt(dmsMatch[6])/60 + parseFloat(dmsMatch[7])/3600;
+        if (dmsMatch[8].toUpperCase() === 'W') lng = -lng;
+        setPin(lat, lng, true);
+        alert(`Parsed DMS: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+        return;
+      }
+
+      // 2. Check for Decimal coordinates: 32.954611, 70.648167
+      const decRegex = /(-?\d{1,3}\.\d+)\s*,\s*(-?\d{1,3}\.\d+)/;
+      const decMatch = text.match(decRegex);
+      if (decMatch) {
+        const lat = parseFloat(decMatch[1]);
+        const lng = parseFloat(decMatch[2]);
+        setPin(lat, lng, true);
+        alert(`Parsed Decimal: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+        return;
+      }
+
+      // 3. Check for Google Maps URL with @lat,lng
+      const urlRegex = /@(-?\d+\.\d+),(-?\d+\.\d+)/;
+      const urlMatch = text.match(urlRegex);
+      if (urlMatch) {
+        const lat = parseFloat(urlMatch[1]);
+        const lng = parseFloat(urlMatch[2]);
+        setPin(lat, lng, true);
+        alert(`Extracted from Maps URL: ${lat.toFixed(6)}, ${lng.toFixed(6)}`);
+        return;
+      }
+
+      alert('Could not parse coordinates. Please paste standard coordinates or a Google Maps link.');
+    }
+
+    function copyJSON() {
+      const jsonStr = JSON.stringify(places, null, 2);
+      navigator.clipboard.writeText(jsonStr).then(() => {
+        alert('Copied entire Bannu places JSON to clipboard! You can paste it into assets/data/bannu_places.json.');
+      });
+    }
+
+    function downloadJSON() {
+      const jsonStr = JSON.stringify(places, null, 2);
+      const blob = new Blob([jsonStr], { type: 'application/json' });
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(blob);
+      a.download = 'bannu_places.json';
+      a.click();
+    }
+  </script>
+</body>
+</html>

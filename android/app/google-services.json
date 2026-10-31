@@ -1,0 +1,62 @@
+{
+  "project_info": {
+    "project_number": "40070742970",
+    "project_id": "shango-46a70"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:40070742970:android:0950ba17eb84b2b1c71383",
+        "android_client_info": {
+          "package_name": "com.jabirulabs.shango"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "40070742970-jmj02ng38m5j93mclmgamn3hhv1eue6k.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.jabirulabs.shango",
+            "certificate_hash": "ff9defdd4c412549f814170ea8652577e15b9728"
+          }
+        },
+        {
+          "client_id": "40070742970-ljis5sh2g5b7rfi95h0ldmrkebipifmi.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.jabirulabs.shango",
+            "certificate_hash": "cbb5a914b3fb3e6e8f0a8ad0ebd78bdf5370c90b"
+          }
+        },
+        {
+          "client_id": "40070742970-v4sp5dr4b5eufjiq4kd2i26natr3g612.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.jabirulabs.shango",
+            "certificate_hash": "c0c5b092a4c5ff0cea372712c727346f40cd07b5"
+          }
+        },
+        {
+          "client_id": "40070742970-ir79dekvdd7lsoq65nt7sgfm7mc3upl6.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDJKD0c-Ty0Nrn0nPBSNAWQ6DyzonCXB_w"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "40070742970-ir79dekvdd7lsoq65nt7sgfm7mc3upl6.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

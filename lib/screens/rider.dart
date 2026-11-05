@@ -48,6 +48,7 @@ class _RiderHomeState extends State<RiderHome> with WidgetsBindingObserver {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _fetchRiderLocation();
+    _checkInitialOnlineStatus();
 
     // Listen to foreground FCM ride broadcast events
     _fcmRideSub = NotificationService.incomingRideStream.stream.listen((event) {
@@ -77,10 +78,21 @@ class _RiderHomeState extends State<RiderHome> with WidgetsBindingObserver {
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.detached && online) {
-      final curUid = FirebaseAuth.instance.currentUser?.uid;
-      if (curUid != null) {
-        _rideService.setRiderOnlineStatus(uid: curUid, isOnline: false);
+    // Note: Do not mark rider offline when app is detached/minimized,
+    // so the rider remains online in Firestore and continues receiving
+    // high-priority ride requests via Railway push notifications while closed.
+  }
+
+  Future<void> _checkInitialOnlineStatus() async {
+    final curUid = FirebaseAuth.instance.currentUser?.uid;
+    if (curUid != null) {
+      try {
+        final doc = await FirebaseFirestore.instance.collection('online_riders').doc(curUid).get();
+        if (doc.exists && doc.data()?['isOnline'] == true && mounted) {
+          _toggleOnline(true);
+        }
+      } catch (e) {
+        debugPrint('Error restoring rider online status: $e');
       }
     }
   }
@@ -387,10 +399,7 @@ class _RiderHomeState extends State<RiderHome> with WidgetsBindingObserver {
     _ridesSub?.cancel();
     _riderGpsSub?.cancel();
     _heartbeatTimer?.cancel();
-    final authUser = FirebaseAuth.instance.currentUser;
-    if (authUser != null && online) {
-      _rideService.setRiderOnlineStatus(uid: authUser.uid, isOnline: false);
-    }
+    // Do not mark offline in Firestore on dispose so background receiving continues
     super.dispose();
   }
 

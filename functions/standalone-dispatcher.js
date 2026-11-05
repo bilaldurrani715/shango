@@ -176,52 +176,32 @@ async function dispatchRideRequest(rideId, rideData) {
     const pickupAddress = String(rideData.pickupAddress || 'Nearby Pickup');
     const dropAddress = String(rideData.dropAddress || 'Destination');
 
+    const payloadData = {
+      type: 'NEW_RIDE_REQUEST',
+      ride_request_id: String(rideId),
+      pickup_address: pickupAddress,
+      drop_address: dropAddress,
+      pickup_latitude: String(pickupLat),
+      pickup_longitude: String(pickupLng),
+      drop_latitude: String(rideData.dropLat || ''),
+      drop_longitude: String(rideData.dropLng || ''),
+      estimated_fare: estimatedFare,
+      distance_km: String((rideData.distanceKm || 2.0).toFixed(1)),
+      customer_name: String(rideData.customerName || 'Passenger'),
+      customer_phone: String(rideData.customerPhone || ''),
+      expires_at: String(Date.now() + (RIDE_TTL_SECONDS * 1000)),
+    };
+
+    // Data-only high-priority payload so Android wakes up the background Dart handler
+    // and displays the fullScreenIntent heads-up alert with custom sound & vibration
     const message = {
       tokens: eligibleTokens,
       android: {
         priority: 'high',
         ttl: RIDE_TTL_SECONDS * 1000,
-        notification: {
-          channelId: 'shango_ride_requests',
-          sound: 'ride_request',
-          tag: `ride_${rideId}`,
-          title: `NEW RIDE REQUEST! (PKR ${estimatedFare})`,
-          body: `A passenger nearby is requesting a ride. Tap to view and accept.`,
-          icon: 'ic_launcher',
-          color: '#F4C20D',
-          clickAction: 'FLUTTER_NOTIFICATION_CLICK',
-        },
-        data: {
-          type: 'NEW_RIDE_REQUEST',
-          ride_request_id: rideId,
-          pickup_address: pickupAddress,
-          drop_address: dropAddress,
-          pickup_latitude: String(pickupLat),
-          pickup_longitude: String(pickupLng),
-          drop_latitude: String(rideData.dropLat || ''),
-          drop_longitude: String(rideData.dropLng || ''),
-          estimated_fare: estimatedFare,
-          distance_km: String((rideData.distanceKm || 2.0).toFixed(1)),
-          customer_name: String(rideData.customerName || 'Passenger'),
-          customer_phone: String(rideData.customerPhone || ''),
-          expires_at: String(Date.now() + (RIDE_TTL_SECONDS * 1000)),
-        },
+        data: payloadData,
       },
-      data: {
-        type: 'NEW_RIDE_REQUEST',
-        ride_request_id: rideId,
-        pickup_address: pickupAddress,
-        drop_address: dropAddress,
-        pickup_latitude: String(pickupLat),
-        pickup_longitude: String(pickupLng),
-        drop_latitude: String(rideData.dropLat || ''),
-        drop_longitude: String(rideData.dropLng || ''),
-        estimated_fare: estimatedFare,
-        distance_km: String((rideData.distanceKm || 2.0).toFixed(1)),
-        customer_name: String(rideData.customerName || 'Passenger'),
-        customer_phone: String(rideData.customerPhone || ''),
-        expires_at: String(Date.now() + (RIDE_TTL_SECONDS * 1000)),
-      },
+      data: payloadData,
     };
 
     const resp = await admin.messaging().sendEachForMulticast(message);

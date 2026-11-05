@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -10,6 +11,9 @@ import '../screens/incoming_ride_screen.dart';
 /// Top-level background message handler for FCM (invoked by OS in background and terminated states)
 @pragma('vm:entry-point')
 Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  try {
+    await Firebase.initializeApp();
+  } catch (_) {}
   debugPrint('FCM Background message received: ${message.messageId}, data: ${message.data}');
 
   final type = message.data['type'];
@@ -94,12 +98,12 @@ class NotificationService {
 
   /// Dedicated high-priority ride requests notification channel with custom sound & strong vibration
   static final AndroidNotificationChannel rideRequestChannel = AndroidNotificationChannel(
-    'shango_ride_requests',
+    'shango_ride_requests_v2',
     'Shango Ride Requests',
     description: 'Urgent incoming passenger ride requests with high priority alert sound and vibration.',
     importance: Importance.max,
     playSound: true,
-    sound: RawResourceAndroidNotificationSound('ride_request'),
+    sound: const RawResourceAndroidNotificationSound('ride_request'),
     enableVibration: true,
     vibrationPattern: Int64List.fromList([0, 1000, 500, 1000, 500, 1500]),
     audioAttributesUsage: AudioAttributesUsage.notificationRingtone,
@@ -165,6 +169,9 @@ class NotificationService {
       final androidPlugin = _localNotifications.resolvePlatformSpecificImplementation<
           AndroidFlutterLocalNotificationsPlugin>();
       if (androidPlugin != null) {
+        try {
+          await androidPlugin.deleteNotificationChannel('shango_ride_requests');
+        } catch (_) {}
         await androidPlugin.createNotificationChannel(_channel);
         await androidPlugin.createNotificationChannel(rideRequestChannel);
         await androidPlugin.requestNotificationsPermission();

@@ -141,53 +141,33 @@ exports.onRideCreated = functions.firestore
       const customerName = String(rideData.customerName || 'Passenger');
       const expiresAt = String(Date.now() + (RIDE_TTL_SECONDS * 1000));
 
-      // 3. Construct high-priority FCM Multicast message
+      // 3. Construct high-priority FCM Multicast data message
+      const payloadData = {
+        type: 'NEW_RIDE_REQUEST',
+        ride_request_id: String(rideId),
+        pickup_address: pickupAddress,
+        drop_address: dropAddress,
+        pickup_latitude: String(pickupLat),
+        pickup_longitude: String(pickupLng),
+        drop_latitude: String(rideData.dropLat || ''),
+        drop_longitude: String(rideData.dropLng || ''),
+        estimated_fare: estimatedFare,
+        distance_km: distanceKm,
+        customer_name: customerName,
+        customer_phone: String(rideData.customerPhone || ''),
+        expires_at: expiresAt,
+      };
+
+      // Data-only high-priority payload so Android wakes up the background Dart handler
+      // and displays the fullScreenIntent heads-up alert with custom sound & vibration
       const message = {
         tokens: eligibleTokens,
         android: {
           priority: 'high',
           ttl: RIDE_TTL_SECONDS * 1000,
-          notification: {
-            channelId: 'shango_ride_requests',
-            sound: 'ride_request',
-            tag: `ride_${rideId}`,
-            title: `NEW RIDE REQUEST! (PKR ${estimatedFare})`,
-            body: `A passenger nearby is requesting a ride. Tap to view and accept.`,
-            icon: 'ic_launcher',
-            color: '#F4C20D',
-            clickAction: 'FLUTTER_NOTIFICATION_CLICK',
-          },
-          data: {
-            type: 'NEW_RIDE_REQUEST',
-            ride_request_id: rideId,
-            pickup_address: pickupAddress,
-            drop_address: dropAddress,
-            pickup_latitude: String(pickupLat),
-            pickup_longitude: String(pickupLng),
-            drop_latitude: String(rideData.dropLat || ''),
-            drop_longitude: String(rideData.dropLng || ''),
-            estimated_fare: estimatedFare,
-            distance_km: distanceKm,
-            customer_name: customerName,
-            customer_phone: String(rideData.customerPhone || ''),
-            expires_at: expiresAt,
-          },
+          data: payloadData,
         },
-        data: {
-          type: 'NEW_RIDE_REQUEST',
-          ride_request_id: rideId,
-          pickup_address: pickupAddress,
-          drop_address: dropAddress,
-          pickup_latitude: String(pickupLat),
-          pickup_longitude: String(pickupLng),
-          drop_latitude: String(rideData.dropLat || ''),
-          drop_longitude: String(rideData.dropLng || ''),
-          estimated_fare: estimatedFare,
-          distance_km: distanceKm,
-          customer_name: customerName,
-          customer_phone: String(rideData.customerPhone || ''),
-          expires_at: expiresAt,
-        },
+        data: payloadData,
       };
 
       // 4. Send Multicast via Firebase Admin SDK

@@ -58,6 +58,8 @@ class _RiderHomeState extends State<RiderHome> with WidgetsBindingObserver {
 
       if (type == 'NEW_RIDE_REQUEST' && rideId != null) {
         if (!_isSheetShowing && !_dismissedRideIds.contains(rideId)) {
+          _isSheetShowing = true;
+          _currentPromptedRideId = rideId;
           Navigator.push(
             context,
             MaterialPageRoute(
@@ -66,7 +68,10 @@ class _RiderHomeState extends State<RiderHome> with WidgetsBindingObserver {
                 riderLocation: riderLocation,
               ),
             ),
-          );
+          ).whenComplete(() {
+            _isSheetShowing = false;
+            _currentPromptedRideId = null;
+          });
         }
       } else if ((type == 'RIDE_CANCELLED' || type == 'RIDE_NO_LONGER_AVAILABLE') && rideId != null) {
         if (_currentPromptedRideId == rideId) {
@@ -407,12 +412,20 @@ class _RiderHomeState extends State<RiderHome> with WidgetsBindingObserver {
     _promptedRideSub?.cancel();
     _promptedRideSub = null;
 
-    if (_isSheetShowing && _requestSheetContext != null && _requestSheetContext!.mounted) {
-      Navigator.of(_requestSheetContext!).pop();
-    }
-    _isSheetShowing = false;
+    final ctx = _requestSheetContext;
     _requestSheetContext = null;
+    _isSheetShowing = false;
     _currentPromptedRideId = null;
+
+    if (ctx != null && ctx.mounted) {
+      try {
+        if (Navigator.of(ctx).canPop()) {
+          Navigator.of(ctx).pop();
+        }
+      } catch (e) {
+        debugPrint('Error dismissing request sheet: $e');
+      }
+    }
 
     if (reason != null && mounted) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -440,15 +453,23 @@ class _RiderHomeState extends State<RiderHome> with WidgetsBindingObserver {
   void _showRequest(RideModel ride) {
     if (_isSheetShowing || _isOnActiveRide || !mounted) return;
 
+    // Check age of ride request - do not prompt stale or already expired rides
+    final ageSeconds = DateTime.now().difference(ride.createdAt).inSeconds;
+    if (ageSeconds >= 45) {
+      _dismissedRideIds.add(ride.id);
+      return;
+    }
+    final remainingSeconds = (30 - ageSeconds).clamp(5, 30);
+
     _isSheetShowing = true;
     _currentPromptedRideId = ride.id;
 
     // Direct real-time listener on the prompted ride document.
-    // If accepted by another rider or cancelled by passenger, auto-dismiss instantly!
+    // If accepted by another rider, cancelled, or expired, auto-dismiss instantly!
     _promptedRideSub?.cancel();
     _promptedRideSub = _rideService.streamRide(ride.id).listen((liveRide) {
-      if (liveRide != null && liveRide.status != 'requested') {
-        final reason = (liveRide.status == 'accepted')
+      if (liveRide == null || liveRide.status != 'requested') {
+        final reason = (liveRide?.status == 'accepted')
             ? 'This ride was accepted by another rider.'
             : 'This ride request is no longer active.';
         _dismissCurrentRequest(reason: reason);
@@ -459,8 +480,8 @@ class _RiderHomeState extends State<RiderHome> with WidgetsBindingObserver {
 
     showModalBottomSheet(
       context: context,
-      isDismissible: false,
-      enableDrag: false,
+      isDismissible: true,
+      enableDrag: true,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       builder: (sheetContext) {
         _requestSheetContext = sheetContext;
@@ -474,24 +495,36 @@ class _RiderHomeState extends State<RiderHome> with WidgetsBindingObserver {
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   const Text('New ride request', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800)),
-                  Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                    decoration: BoxDecoration(color: Colors.green.shade100, borderRadius: BorderRadius.circular(12)),
-                    child: Text(
-                      '${LocationService.formatDistance(distanceToPickup)} away',
-                      style: TextStyle(color: Colors.green.shade800, fontWeight: FontWeight.bold, fontSize: 12),
-                    ),
+                  Row(
+                    children: [
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                        decoration: BoxDecoration(color: Colors.green.shade100, borderRadius: BorderRadius.circular(12)),
+                        child: Text(
+                          '${LocationService.formatDistance(distanceToPickup)} away',
+                          style: TextStyle(color: Colors.green.shade800, fontWeight: FontWeight.bold, fontSize: 12),
+                        ),
+                      ),
+                      const SizedBox(width: 4),
+                      IconButton(
+                        visualDensity: VisualDensity.compact,
+                        icon: const Icon(Icons.close, color: Colors.black54, size: 20),
+                        tooltip: 'Close',
+                        onPressed: () {
+                          _dismissedRideIds.add(ride.id);
+                          _dismissCurrentRequest();
+                        },
+                      ),
+                    ],
                   ),
                 ],
               ),
               const SizedBox(height: 12),
               _RideRequestTimerBar(
-                totalSeconds: 20,
+                totalSeconds: remainingSeconds,
                 onTimeout: () {
-                  if (_isSheetShowing && _currentPromptedRideId == ride.id) {
-                    _dismissedRideIds.add(ride.id);
-                    _dismissCurrentRequest();
-                  }
+                  _dismissedRideIds.add(ride.id);
+                  _dismissCurrentRequest(reason: 'Ride request expired.');
                 },
               ),
               const SizedBox(height: 18),
@@ -542,15 +575,8 @@ class _RiderHomeState extends State<RiderHome> with WidgetsBindingObserver {
                       bg: Colors.green.shade600,
                       fg: C.white,
                       onTap: () async {
-                        // Dismiss prompt sheet cleanly
-                        _promptedRideSub?.cancel();
-                        _promptedRideSub = null;
-                        if (_isSheetShowing && _requestSheetContext != null && _requestSheetContext!.mounted) {
-                          Navigator.of(_requestSheetContext!).pop();
-                        }
-                        _isSheetShowing = false;
-                        _requestSheetContext = null;
-                        _currentPromptedRideId = null;
+                        _dismissedRideIds.add(ride.id);
+                        _dismissCurrentRequest();
 
                         final user = FirebaseAuth.instance.currentUser;
                         final authService = AuthService();
@@ -594,7 +620,7 @@ class _RiderHomeState extends State<RiderHome> with WidgetsBindingObserver {
                                     SizedBox(width: 10),
                                     Expanded(
                                       child: Text(
-                                        'This ride was already accepted by another rider!',
+                                        'This ride was already accepted by another rider or has expired!',
                                         style: TextStyle(fontWeight: FontWeight.bold),
                                       ),
                                     ),
@@ -617,6 +643,7 @@ class _RiderHomeState extends State<RiderHome> with WidgetsBindingObserver {
         );
       },
     ).whenComplete(() {
+      _dismissedRideIds.add(ride.id);
       _promptedRideSub?.cancel();
       _promptedRideSub = null;
       _isSheetShowing = false;
@@ -1360,8 +1387,10 @@ class _RideRequestTimerBarState extends State<_RideRequestTimerBar> {
             _progress = 0.0;
             _secondsRemaining = 0;
           });
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            widget.onTimeout();
+          });
         }
-        widget.onTimeout();
       } else {
         if (mounted) {
           setState(() {

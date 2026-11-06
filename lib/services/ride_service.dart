@@ -408,6 +408,10 @@ class RideService {
       if (token != null && token.isNotEmpty) {
         onlineData['fcmToken'] = token;
         onlineData['fcmTokenUpdatedAt'] = FieldValue.serverTimestamp();
+        FirebaseFirestore.instance.collection('users').doc(uid).set({
+          'fcmToken': token,
+          'fcmTokenUpdatedAt': FieldValue.serverTimestamp(),
+        }, SetOptions(merge: true)).catchError((_) {});
       }
 
       await _onlineRidersRef.doc(uid).set(onlineData, SetOptions(merge: true));

@@ -158,13 +158,31 @@ exports.onRideCreated = functions.firestore
         expires_at: expiresAt,
       };
 
-      // Data-only high-priority payload so Android wakes up the background Dart handler
-      // and displays the fullScreenIntent heads-up alert with custom sound & vibration
+      const notificationPayload = {
+        title: `NEW RIDE REQUEST! (PKR ${estimatedFare})`,
+        body: `Pickup: ${pickupAddress} • PKR ${estimatedFare} (Cash) • Tap to accept`,
+      };
+
+      // Both notification + data payload:
+      // When the app is closed/killed, Google Play Services system daemon ALWAYS displays the notification,
+      // plays the custom sound 'ride_request', and vibrates on channel 'shango_ride_requests_v2'.
+      // When the app is open, FirebaseMessaging.onMessage handles the custom UI and sound in foreground.
       const message = {
         tokens: eligibleTokens,
+        notification: notificationPayload,
         android: {
           priority: 'high',
           ttl: RIDE_TTL_SECONDS * 1000,
+          notification: {
+            channelId: 'shango_ride_requests_v2',
+            sound: 'ride_request',
+            tag: `ride_${rideId}`,
+            title: `NEW RIDE REQUEST! (PKR ${estimatedFare})`,
+            body: `Pickup: ${pickupAddress} • PKR ${estimatedFare} (Cash) • Tap to accept`,
+            icon: 'ic_launcher',
+            color: '#F4C20D',
+            clickAction: 'FLUTTER_NOTIFICATION_CLICK',
+          },
           data: payloadData,
         },
         data: payloadData,

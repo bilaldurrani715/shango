@@ -221,6 +221,19 @@ class NotificationService {
         }
       });
 
+      // Save token immediately on app launch if user is signed in
+      final curUid = FirebaseAuth.instance.currentUser?.uid;
+      if (curUid != null) {
+        saveUserFcmToken(curUid);
+      }
+
+      // Automatically sync token on any auth state changes (login, switch account)
+      FirebaseAuth.instance.authStateChanges().listen((user) {
+        if (user != null) {
+          saveUserFcmToken(user.uid);
+        }
+      });
+
       // 7. Handle notification tap when app was opened from background
       FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
         final rideId = message.data['ride_request_id'] ?? message.data['rideId'] ?? message.data['referenceId'];
